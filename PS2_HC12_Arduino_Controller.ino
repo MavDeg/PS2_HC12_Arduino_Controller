@@ -18,42 +18,51 @@ char vibrate = 0;
 //HC-12
 SoftwareSerial HC12(2, 3); // HC-12 TX Pin, HC-12 RX Pin
 
-						   //analogs
+ //analogs
 typedef struct analogs {
-	unsigned int leftX;
-	unsigned int leftY;
-	unsigned int rightX;
-	unsigned int rightY;
+	 byte leftX;
+	 byte leftY;
+	 byte rightX;
+	 byte rightY;
 };
 //digitals
-typedef union digitals {
+typedef union digitalKeySet1 {
 	struct {
-		unsigned int l1 : 1;
-		unsigned int l2 : 1;
-		unsigned int l3 : 1;
-		unsigned int r1 : 1;
-		unsigned int r2 : 1;
-		unsigned int r3 : 1;
-		unsigned int up : 1;
-		unsigned int dn : 1;
-		unsigned int lf : 1;
-		unsigned int rt : 1;
-		unsigned int tr : 1;
-		unsigned int cr : 1;
-		unsigned int sq : 1;
-		unsigned int cl : 1;
-		unsigned int sl : 1;
-		unsigned int st : 1;
+
+		byte up			: 1;
+		byte down		: 1;
+		byte left		: 1;
+		byte right		: 1;
+		byte triangle	: 1;
+		byte cross		: 1;
+		byte square		: 1;
+		byte circle		: 1;
 	}bits;
-	unsigned int onoff;
+	byte onoff;
+};
+//digitals
+typedef union digitalKeySet2 {
+	struct {
+
+		byte left1		: 1;
+		byte left2		: 1;
+		byte left3		: 1;
+		byte right1		: 1;
+		byte right2		: 1;
+		byte right3		: 1;
+		byte select		: 1;
+		byte start		: 1;
+	}bits;
+	byte onoff;
 };
 
 struct keys {
 	analogs analogKeys;
-	digitals digitalKeys;
+	digitalKeySet1 digiSet1;
+	digitalKeySet2 digiSet2;
 };
 
-keys keyValues, prevKeyValues;
+keys keyValues;
 
 void setup()
 {
@@ -83,9 +92,9 @@ void setup()
 	}
 
 	memset(&keyValues, 0, sizeof(struct keys));		// intialize struct to 0
-	memset(&prevKeyValues, 0, sizeof(struct keys));  // intialize struct to 0	
+	//memset(&prevKeyValues, 0, sizeof(struct keys));  // intialize struct to 0	
 
-													 //HC-12 Setup
+	//HC-12 Setup
 	HC12.begin(9600);               // Serial port to HC12
 									//pinMode(4, OUTPUT);			//uncomment when sending AT command
 									//digitalWrite(4, LOW);
@@ -95,11 +104,10 @@ void loop()
 {
 	// PS2X read gamepad values:
 	gameController_Reading();
-	//delay(50);
 	//ps2x.read_gamepad(200, 200);          //read controller and set large motor to spin at 'vibrate' speed
 
 	// HC-12 commands
-	sendCommand();
+	txRxCommand();
 }
 
 //Read the controllers inputs
@@ -116,32 +124,37 @@ void gameController_Reading()
 	// digital readings
 	if (ps2x.NewButtonState()) {
 		// use masking to toggle the value
-		if (ps2x.ButtonPressed(PSB_L1))			keyValues.digitalKeys.bits.l1 = toggleButton(0x0001);
-		if (ps2x.ButtonPressed(PSB_L2))			keyValues.digitalKeys.bits.l2 = toggleButton(0x0002);
-		if (ps2x.ButtonPressed(PSB_L3))			keyValues.digitalKeys.bits.l3 = toggleButton(0x0004);
 
-		if (ps2x.ButtonPressed(PSB_R1))			keyValues.digitalKeys.bits.r1 = toggleButton(0x0008);
-		if (ps2x.ButtonPressed(PSB_R2))			keyValues.digitalKeys.bits.r2 = toggleButton(0x0010);
-		if (ps2x.ButtonPressed(PSB_R3))			keyValues.digitalKeys.bits.r3 = toggleButton(0x0020);
-
-		//
-		if (ps2x.ButtonPressed(PSB_PAD_UP))		keyValues.digitalKeys.bits.up = toggleButton(0x0040);
-		if (ps2x.ButtonPressed(PSB_PAD_DOWN))	keyValues.digitalKeys.bits.dn = toggleButton(0x0080);
-		if (ps2x.ButtonPressed(PSB_PAD_LEFT))	keyValues.digitalKeys.bits.lf = toggleButton(0x0100);
-		if (ps2x.ButtonPressed(PSB_PAD_RIGHT))	keyValues.digitalKeys.bits.rt = toggleButton(0x0200);
-
+	// digital kesy set 1
+		if (ps2x.ButtonPressed(PSB_PAD_UP))		keyValues.digiSet1.bits.up		=	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x01);
+		if (ps2x.ButtonPressed(PSB_PAD_DOWN))	keyValues.digiSet1.bits.down	=	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x02);
+		if (ps2x.ButtonPressed(PSB_PAD_LEFT))	keyValues.digiSet1.bits.left	=	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x04);
+		if (ps2x.ButtonPressed(PSB_PAD_RIGHT))	keyValues.digiSet1.bits.left	=	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x08);
+		
 		// Momentary buttons triangle, cross, square, circle
-		if (ps2x.ButtonPressed(PSB_TRIANGLE))	keyValues.digitalKeys.bits.tr = toggleButton(0x0400);
-		if (ps2x.ButtonReleased(PSB_TRIANGLE))	keyValues.digitalKeys.bits.tr = toggleButton(0x0400);
-		if (ps2x.ButtonPressed(PSB_CROSS))		keyValues.digitalKeys.bits.cr = toggleButton(0x0800);
-		if (ps2x.ButtonReleased(PSB_CROSS))		keyValues.digitalKeys.bits.cr = toggleButton(0x0800);
-		if (ps2x.ButtonPressed(PSB_SQUARE))		keyValues.digitalKeys.bits.sq = toggleButton(0x1000);
-		if (ps2x.ButtonReleased(PSB_SQUARE))	keyValues.digitalKeys.bits.sq = toggleButton(0x1000);
-		if (ps2x.ButtonPressed(PSB_CIRCLE))		keyValues.digitalKeys.bits.cl = toggleButton(0x2000);
-		if (ps2x.ButtonReleased(PSB_CIRCLE))	keyValues.digitalKeys.bits.cl = toggleButton(0x2000);
+		if (ps2x.ButtonPressed(PSB_TRIANGLE))	keyValues.digiSet1.bits.triangle =	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x10);
+		if (ps2x.ButtonReleased(PSB_TRIANGLE))	keyValues.digiSet1.bits.triangle =	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x10);
+		if (ps2x.ButtonPressed(PSB_CROSS))		keyValues.digiSet1.bits.cross	 =	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x20);
+		if (ps2x.ButtonReleased(PSB_CROSS))		keyValues.digiSet1.bits.cross	 =	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x20);
+		if (ps2x.ButtonPressed(PSB_SQUARE))		keyValues.digiSet1.bits.square	 =  toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x40);
+		if (ps2x.ButtonReleased(PSB_SQUARE))	keyValues.digiSet1.bits.square	 =	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x40);
+		if (ps2x.ButtonPressed(PSB_CIRCLE))		keyValues.digiSet1.bits.circle	 =	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x80);
+		if (ps2x.ButtonReleased(PSB_CIRCLE))	keyValues.digiSet1.bits.circle	 =	toggleDigitalKeySet(keyValues.digiSet1.onoff, 0x80);
 
-		if (ps2x.ButtonPressed(PSB_SELECT))		keyValues.digitalKeys.bits.sl = toggleButton(0x4000);
-		if (ps2x.ButtonPressed(PSB_START))		keyValues.digitalKeys.bits.st = toggleButton(0x8000);
+
+
+	// digital kesy set 2
+
+		if (ps2x.ButtonPressed(PSB_L1))			keyValues.digiSet2.bits.left1	 = toggleDigitalKeySet(keyValues.digiSet2.onoff, 0x01);
+		if (ps2x.ButtonPressed(PSB_L2))			keyValues.digiSet2.bits.left2	 = toggleDigitalKeySet(keyValues.digiSet2.onoff, 0x02);
+		if (ps2x.ButtonPressed(PSB_L3))			keyValues.digiSet2.bits.left3	 = toggleDigitalKeySet(keyValues.digiSet2.onoff, 0x04);
+
+		if (ps2x.ButtonPressed(PSB_R1))			keyValues.digiSet2.bits.right1	 = toggleDigitalKeySet(keyValues.digiSet2.onoff, 0x08);
+		if (ps2x.ButtonPressed(PSB_R2))			keyValues.digiSet2.bits.right2	 = toggleDigitalKeySet(keyValues.digiSet2.onoff, 0x10);
+		if (ps2x.ButtonPressed(PSB_R3))			keyValues.digiSet2.bits.right3   = toggleDigitalKeySet(keyValues.digiSet2.onoff, 0x20);
+
+		if (ps2x.ButtonPressed(PSB_SELECT))		keyValues.digiSet2.bits.select	 = toggleDigitalKeySet(keyValues.digiSet2.onoff, 0x40);
+		if (ps2x.ButtonPressed(PSB_START))		keyValues.digiSet2.bits.start	 = toggleDigitalKeySet(keyValues.digiSet2.onoff, 0x80);
 	}
 
 	//Debug part
@@ -149,11 +162,13 @@ void gameController_Reading()
 	Serial.print("	Left Analog Y:	"); Serial.print(keyValues.analogKeys.leftY);
 	Serial.print("	Right Analog X:	"); Serial.print(keyValues.analogKeys.rightX);
 	Serial.print("	Right Analog Y:	"); Serial.println(keyValues.analogKeys.rightY);
-	Serial.print("	DIGITAL KEYS	"); Serial.println(keyValues.digitalKeys.onoff);
+	Serial.print("	DIGITAL KEYS	"); Serial.println(keyValues.digiSet1.onoff);
+	Serial.print("	DIGITAL KEYS	"); Serial.println(keyValues.digiSet2.onoff);
+
 }
 
-int toggleButton(unsigned int mask) {
-	if ((keyValues.digitalKeys.onoff & mask) == 0) {
+int toggleDigitalKeySet(byte keys, byte mask) {
+	if ((keys & mask) == 0) {
 		return 1;
 	}
 	else {
@@ -161,22 +176,16 @@ int toggleButton(unsigned int mask) {
 	}
 }
 
-void sendCommand() {
+void txRxCommand() {
 
-	//if ((keyValues.analogKeys.leftX != prevKeyValues.analogKeys.leftX))		{ prevKeyValues.analogKeys.leftX = keyValues.analogKeys.leftX; 	HC12.write(keyValues.analogKeys.leftX); }   // Send that data to HC-12
-	//if ((keyValues.analogKeys.leftY != prevKeyValues.analogKeys.leftY))		{ prevKeyValues.analogKeys.leftY = keyValues.analogKeys.leftY; 	HC12.write(keyValues.analogKeys.leftY); }    // Send that data to HC-12
-	//if ((keyValues.analogKeys.rightX != prevKeyValues.analogKeys.rightX))	{ prevKeyValues.analogKeys.rightX = keyValues.analogKeys.rightX; 	HC12.write(keyValues.analogKeys.rightX); }    // Send that data to HC-12
-	//if ((keyValues.analogKeys.rightY != prevKeyValues.analogKeys.rightY))	{ prevKeyValues.analogKeys.rightY = keyValues.analogKeys.rightY; 	HC12.write(keyValues.analogKeys.rightY); }   // Send that data to HC-12
-	//if ((keyValues.digitalKeys.onoff != prevKeyValues.digitalKeys.onoff))	{ prevKeyValues.digitalKeys.onoff = keyValues.digitalKeys.onoff; 	HC12.write(keyValues.digitalKeys.onoff); }  // Send that data to HC-12
+	//sending: always do as fast as possible
+	HC12.write(keyValues.analogKeys.leftX);		delay(1);
+	HC12.write(keyValues.analogKeys.leftY);		delay(1);
+	HC12.write(keyValues.analogKeys.rightX);	delay(1);
+	HC12.write(keyValues.analogKeys.rightY);	delay(1);
+	HC12.write(keyValues.digiSet1.onoff);		delay(1);
+	HC12.write(keyValues.digiSet2.onoff);		delay(1);
 
-	//option 1
-	/*HC12.write(keyValues.analogKeys.leftX);
-	HC12.write(keyValues.analogKeys.leftY);
-	HC12.write(keyValues.analogKeys.rightX);
-	HC12.write(keyValues.analogKeys.rightY);
-	HC12.write(keyValues.digitalKeys.onoff);*/
-
-	//option 2: MavDeg" I think it needs to be looped
-	HC12.write(keyValues.analogKeys.leftX);
-	HC12.write(keyValues.analogKeys.leftY);
+	// receiving: do only every second
+	if (HC12.available()) {}
 }
